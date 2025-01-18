@@ -9,4 +9,8 @@ name = "grid_weights"
 crate-type = ["cdylib"]
 
 [dependencies]
+geo = { version = "0.29.3", features = ["multithreading", "use-serde"] }
+geoarrow = "0.4.0-beta.2"
+numpy = "0.23.0"
 pyo3 = "0.23.1"
+pyo3-arrow = "0.6.0"
