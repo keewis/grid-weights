@@ -1,8 +1,6 @@
-use geo::{Area, algorithm::BooleanOps};
+use geo::{algorithm::BooleanOps, Area};
 use geoarrow::{array::PolygonArray, trait_::ArrayAccessor};
-use numpy::{
-    PyArray1 as PyNumpyArray1, PyArrayDyn, PyArrayMethods, PyUntypedArray,
-};
+use numpy::{PyArray1 as PyNumpyArray1, PyArrayDyn, PyArrayMethods};
 use pyo3::exceptions::PyOSError;
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;
@@ -54,7 +52,7 @@ fn uncompress_sparse_indices(
         .collect()
 }
 
-fn pyarray_as_vec(data: &Bound<'_, PyUntypedArray>) -> PyResult<Vec<i64>> {
+fn pyarray_as_vec(data: &Bound<'_, PyAny>) -> PyResult<Vec<i64>> {
     let pyarray = data.downcast::<PyArrayDyn<i64>>()?;
 
     Ok(pyarray.readonly().as_slice()?.to_vec())
@@ -84,32 +82,36 @@ fn conservative_regridding(
     let indices: Vec<(usize, Vec<usize>)> =
         Python::with_gil(|py| -> PyResult<Vec<(usize, Vec<usize>)>> {
             let indices: Vec<usize> = cast(pyarray_as_vec(
-                overlapping_cells
-                    .getattr(py, "indices")?
-                    .downcast_bound::<PyUntypedArray>(py)?,
+                overlapping_cells.getattr(py, "indices")?.bind(py),
             )?);
             let index_ptr: Vec<usize> = cast(pyarray_as_vec(
-                overlapping_cells
-                    .getattr(py, "indptr")?
-                    .downcast_bound::<PyUntypedArray>(py)?,
+                overlapping_cells.getattr(py, "indptr")?.bind(py),
             )?);
 
             Ok(uncompress_sparse_indices(indices, index_ptr))
         })?;
 
-    let weights = indices.iter()
-           .map(|it| {
-               let source_indices = &it.1;
-               let target_cell = &target_polygons[it.0];
-               let target_area = target_cell.unsigned_area();
+    let weights = indices
+        .iter()
+        .map(|it| {
+            let source_indices = &it.1;
+            let target_cell = &target_polygons[it.0];
+            let target_area = target_cell.unsigned_area();
 
-               // TODO: normalize the weights
-               source_indices.iter().map(|index| {
-                   let source_cell = &source_polygons[*index];
+            // TODO: normalize the weights
+            let weights = source_indices
+                .iter()
+                .map(|index| {
+                    let source_cell = &source_polygons[*index];
 
-                   target_cell.intersection(source_cell).unsigned_area() / target_area
-               }).collect::<Vec<_>>()
-           })
+                    target_cell.intersection(source_cell).unsigned_area() / target_area
+                })
+                .collect::<Vec<_>>();
+
+            let sum: f64 = weights.iter().sum();
+
+            weights.into_iter().map(|w| w / sum).collect::<Vec<_>>()
+        })
         .collect::<Vec<_>>();
 
     Python::with_gil(|py| {
@@ -122,8 +124,12 @@ fn conservative_regridding(
         let args = (arg,);
         let kwargs = [
             ("shape", overlapping_cells.getattr(py, "shape")?),
-            ("compressed_axes", overlapping_cells.getattr(py, "compressed_axes")?),
-        ].into_py_dict(py)?;
+            (
+                "compressed_axes",
+                overlapping_cells.getattr(py, "compressed_axes")?,
+            ),
+        ]
+        .into_py_dict(py)?;
 
         Ok(sparse.getattr("GCXS")?.call(args, Some(&kwargs))?.unbind())
     })
