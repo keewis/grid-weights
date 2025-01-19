@@ -110,7 +110,11 @@ fn conservative_regridding(
 
             let sum: f64 = weights.iter().sum();
 
-            weights.into_iter().map(|w| w / sum).collect::<Vec<_>>()
+            if sum != 1.0 {
+                weights.into_iter().map(|w| w / sum).collect::<Vec<_>>()
+            } else {
+                weights
+            }
         })
         .collect::<Vec<_>>();
 
