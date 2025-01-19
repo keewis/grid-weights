@@ -92,24 +92,24 @@ fn conservative_regridding(
         })?;
 
     let weights = indices
-        .iter()
+        .into_iter()
         .map(|it| {
-            let source_indices = &it.1;
-            let target_cell = &target_polygons[it.0];
+            let target_index = it.0;
+            let source_indices = it.1;
+
+            let target_cell = &target_polygons[target_index];
             let target_area = target_cell.unsigned_area();
 
-            // TODO: normalize the weights
             let weights = source_indices
-                .iter()
+                .into_iter()
                 .map(|index| {
-                    let source_cell = &source_polygons[*index];
+                    let source_cell = &source_polygons[index];
 
-                    target_cell.intersection(source_cell).unsigned_area() / target_area
+                    source_cell.intersection(target_cell).unsigned_area() / target_area
                 })
                 .collect::<Vec<_>>();
 
             let sum: f64 = weights.iter().sum();
-
             if sum != 1.0 {
                 weights.into_iter().map(|w| w / sum).collect::<Vec<_>>()
             } else {
