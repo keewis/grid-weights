@@ -1,12 +1,11 @@
 use geo::{Area, algorithm::BooleanOps};
 use geoarrow::{array::PolygonArray, trait_::ArrayAccessor};
 use numpy::{
-    PyArray1 as PyNumpyArray1, PyArrayDyn, PyArrayMethods, PyReadonlyArray1, PyUntypedArray,
-    PyUntypedArrayMethods,
+    PyArray1 as PyNumpyArray1, PyArrayDyn, PyArrayMethods, PyUntypedArray,
 };
 use pyo3::exceptions::PyOSError;
 use pyo3::prelude::*;
-use pyo3::IntoPyObjectExt;
+use pyo3::types::IntoPyDict;
 use pyo3_arrow::PyArray;
 
 pub trait AsPolygonArray {
@@ -66,7 +65,7 @@ fn conservative_regridding(
     source_cells: PyArray,
     target_cells: PyArray,
     overlapping_cells: Py<PyAny>,
-) -> PyResult<()> {
+) -> PyResult<PyObject> {
     let source_polygons: Vec<_> = source_cells
         .into_polygon_array()?
         .iter_geo_values()
@@ -78,6 +77,10 @@ fn conservative_regridding(
 
     // algorithm:
     // 1. iterate over the sparse matrix → pair of indices into source / target cells
+    // 2. extract the cells
+    // 3. compute the overlap between source and target cell
+    // 4. normalize
+    // 5. construct sparse matrix
     let indices: Vec<(usize, Vec<usize>)> =
         Python::with_gil(|py| -> PyResult<Vec<(usize, Vec<usize>)>> {
             let indices: Vec<usize> = cast(pyarray_as_vec(
@@ -94,7 +97,6 @@ fn conservative_regridding(
             Ok(uncompress_sparse_indices(indices, index_ptr))
         })?;
 
-    // 2. extract the cells
     let weights = indices.iter()
            .map(|it| {
                let source_indices = &it.1;
@@ -109,12 +111,22 @@ fn conservative_regridding(
                }).collect::<Vec<_>>()
            })
         .collect::<Vec<_>>();
-    // 3. compute the overlap between source and target cell
-    // 4. normalize
-    // 5. construct sparse matrix
-    //
-    println!("weights: {:?}", weights);
-    Ok(())
+
+    Python::with_gil(|py| {
+        let arg = (
+            PyNumpyArray1::from_vec(py, weights.into_iter().flatten().collect()),
+            overlapping_cells.getattr(py, "indices")?,
+            overlapping_cells.getattr(py, "indptr")?,
+        );
+        let sparse = PyModule::import(py, "sparse")?;
+        let args = (arg,);
+        let kwargs = [
+            ("shape", overlapping_cells.getattr(py, "shape")?),
+            ("compressed_axes", overlapping_cells.getattr(py, "compressed_axes")?),
+        ].into_py_dict(py)?;
+
+        Ok(sparse.getattr("GCXS")?.call(args, Some(&kwargs))?.unbind())
+    })
 }
 
 /// A Python module implemented in Rust.
