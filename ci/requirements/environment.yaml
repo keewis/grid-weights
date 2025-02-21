@@ -1,0 +1,16 @@
+channels:
+  - conda-forge
+dependencies:
+  - maturin
+  - pkg-config
+  - proj
+  - sqlite
+  - shapely
+  - numpy
+  - sparse>=0.15
+  - cf-xarray
+  - pytest
+  - pytest-cov
+  - pip
+  - pip:
+      - geoarrow-rust-core==0.4.0b3
