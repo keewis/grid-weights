@@ -27,6 +27,51 @@ def sparse_as_contiguous(arr):
     return sparse.GCXS.from_coo(arr.tocoo(), compressed_axes=(0,))
 
 
+def sparse_broadcasted_norm(arr, axis):
+    import dask.array as da
+
+    norms = np.sum(arr, axis=axis)
+
+    def sparse_broadcast(chunk, norm_chunk):
+        if chunk.shape == ():
+            return sparse.GCXS.from_coo(sparse.empty((), dtype=chunk.dtype))
+
+        if chunk.nnz == 0:
+            return sparse.GCXS.from_coo(sparse.full_like(chunk.tocoo(), fill_value=1))
+
+        norms_ = np.reshape(norm_chunk, -1).todense()
+
+        coo = np.reshape(chunk.tocoo(), norms_.shape + (-1,))
+        chunk_ = sparse.GCXS.from_coo(coo, compressed_axes=(0,))
+
+        repeats = np.diff(chunk_.indptr)
+        extended_norms = np.repeat(norms_, repeats)
+
+        broadcasted_ = sparse.GCXS(
+            (extended_norms, chunk_.indices, chunk_.indptr),
+            shape=chunk_.shape,
+            compressed_axes=(0,),
+            fill_value=1,
+        )
+        coo = np.reshape(broadcasted_.tocoo(), chunk.shape)
+
+        return sparse.GCXS.from_coo(coo, compressed_axes=(0,))
+
+    return da.blockwise(
+        sparse_broadcast,
+        "ijk",
+        arr,
+        "ijk",
+        norms,
+        "i",
+        meta=sparse.GCXS.from_coo(sparse.empty((), dtype=arr.dtype)),
+    )
+
+
+def sparse_normalize(arr, axis):
+    return arr / sparse_broadcasted_norm(arr, axis)
+
+
 def _compute_chunk(source, target, mask, **kwargs):
     if mask.nnz == 0:
         # no overlap short-circuit
@@ -114,4 +159,8 @@ def conservative_weights(source_cells, target_cells, overlapping_cells):
                 task, shape=chunk_shape, dtype="float64", meta=meta
             )
 
-    return da.block(output_grid.tolist())
+    result = da.block(output_grid.tolist())
+
+    return sparse_normalize(
+        result, axis=tuple(range(result.ndim)[-source_cells.ndim :])
+    )
