@@ -195,4 +195,7 @@ jobs:
 
       - name: Cargo clippy
         run: |
+          export PKG_CONFIG_PATH="${{env.PKG_CONFIG_PATH}}"
+          export PYO3_PYTHON="${{env.PYO3_PYTHON}}"
+
           cargo clippy --tests -- -D warnings
