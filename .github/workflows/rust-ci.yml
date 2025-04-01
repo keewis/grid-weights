@@ -155,6 +155,44 @@ jobs:
       - name: Create rust cache
         uses: Swatinem/rust-cache@v2
 
+      - name: Help finding installed libraries
+        run: |
+          pushd $CONDA_PREFIX
+          if [[ ${{ runner.os }} == "Windows" ]]; then
+            export PKG_CONFIG_PATH="$(readlink -f Library/lib/pkgconfig)"
+            export LD_LIBRARY_PATH="$(readlink -f Library/lib)"
+          else
+            export PKG_CONFIG_PATH="$(readlink -f lib/pkgconfig)"
+            export LD_LIBRARY_PATH="$(readlink -f lib)"
+          fi
+          popd
+
+          echo "PKG_CONFIG_PATH=$PKG_CONFIG_PATH" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> $GITHUB_ENV
+          echo "PYO3_PYTHON=$(which python)" >> $GITHUB_ENV
+
+      - name: Help the linker on macos
+        if: runner.os == 'MacOS'
+        run: |
+          export PKG_CONFIG_PATH="${{env.PKG_CONFIG_PATH}}"
+
+          mkdir -p target/debug/deps
+          ln -s $CONDA_PREFIX/lib/*.dylib target/debug/deps/
+
+          pkg-config --libs --cflags proj 'proj >= 9.4.0'
+          pkgconf --libs --cflags proj 'proj >= 9.4.0'
+
+      - name: Clean up pkg-config
+        if: runner.os == 'Windows'
+        run: |
+          export PKG_CONFIG_PATH="${{env.PKG_CONFIG_PATH}}"
+
+          # remove dependency paths
+          sed -i '/Requires.private:/d' $PKG_CONFIG_PATH/*.pc
+
+          # check that this actually works
+          pkg-config --libs --cflags proj 'proj >= 9.4.0'
+
       - name: Cargo clippy
         run: |
           cargo clippy --tests -- -D warnings
