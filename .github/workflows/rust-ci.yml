@@ -182,7 +182,7 @@ jobs:
           pkg-config --libs --cflags proj 'proj >= 9.4.0'
           pkgconf --libs --cflags proj 'proj >= 9.4.0'
 
-      - name: Clean up pkg-config
+      - name: Clean up pkg-config on windows
         if: runner.os == 'Windows'
         run: |
           export PKG_CONFIG_PATH="${{env.PKG_CONFIG_PATH}}"
@@ -191,6 +191,11 @@ jobs:
           sed -i '/Requires.private:/d' $PKG_CONFIG_PATH/*.pc
 
           # check that this actually works
+          pkg-config --libs --cflags proj 'proj >= 9.4.0'
+
+      - name: Check pkg-config on linux
+        run: |
+          export PKG_CONFIG_PATH="${{env.PKG_CONFIG_PATH}}"
           pkg-config --libs --cflags proj 'proj >= 9.4.0'
 
       - name: Cargo clippy
