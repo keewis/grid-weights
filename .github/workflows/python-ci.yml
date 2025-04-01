@@ -86,21 +86,29 @@ jobs:
           echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> $GITHUB_ENV
           echo "PYO3_PYTHON=$(which python)" >> $GITHUB_ENV
 
-      - name: Clean up pkg-config on windows
-        if: runner.os == 'Windows'
+      - name: Help the linker on macos
+        if: runner.os == 'MacOS'
+        run: |
+          export PKG_CONFIG_PATH="${{env.PKG_CONFIG_PATH}}"
+
+          mkdir -p target/debug/deps
+          ln -s $CONDA_PREFIX/lib/*.dylib target/debug/deps/
+
+      - name: Clean up pkg-config on all OSs
         run: |
           export PKG_CONFIG_PATH="${{env.PKG_CONFIG_PATH}}"
 
           # remove dependency paths
           sed -i '/Requires.private:/d' $PKG_CONFIG_PATH/*.pc
 
-          # check that this actually works
-          pkg-config --libs --cflags proj 'proj >= 9.4.0'
-
-      - name: Check pkg-config on linux
+      - name: Check that this worked
         run: |
-          export PKG_CONFIG_PATH="${{env.PKG_CONFIG_PATH}}"
-          pkg-config --libs --cflags proj 'proj >= 9.4.0'
+          if [[ "${{runner.os}}" == "MacOS" ]]; then
+              pkg-config --libs --cflags proj 'proj >= 9.4.0'
+              pkgconf --libs --cflags proj 'proj >= 9.4.0'
+          else
+              pkg-config --libs --cflags proj 'proj >= 9.4.0'
+          fi
 
       - name: Install the package
         run: |
