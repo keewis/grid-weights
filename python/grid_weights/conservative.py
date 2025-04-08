@@ -1,7 +1,8 @@
-import sparse
 import geoarrow.rust.core as geoarrow
-from grid_indexing.distributed import ChunkGrid
 import numpy as np
+import sparse
+from grid_indexing.distributed import ChunkGrid
+
 from grid_weights.grid_weights import conservative_regridding
 
 try:
@@ -119,8 +120,8 @@ def conservative_weights(source_cells, target_cells, overlapping_cells):
     ValueError
         If the chunking schemes don't match.
     """
-    import dask.array as da
     import dask
+    import dask.array as da
 
     if (
         evaluate_chunked(source_cells, target_cells, overlapping_cells)
