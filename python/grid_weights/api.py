@@ -20,14 +20,28 @@ from collections import Counter
 from collections.abc import Hashable
 from dataclasses import dataclass
 
+import geoarrow.rust.core as geoarrow
+import numpy as np
 import xarray as xr
+from grid_indexing import RTree
+from grid_indexing.distributed import DistributedRTree
 from tlz.itertoolz import concat
 from xarray.namedarray.utils import either_dict_or_kwargs
 
 from grid_weights.conservative import conservative_weights
 
-implemented_algorithms = {
+try:
+    import dask.array as da
+
+    dask_array_type = (da.Array,)
+except ImportError:
+    dask_array_type = ()
+
+_implemented_algorithms = {
     "conservative": conservative_weights,
+}
+_indexing_modes = {
+    "conservative": "overlaps",
 }
 
 
@@ -40,7 +54,7 @@ class Algorithms:
         unknown_algorithms = [
             name
             for name in self.variables.values()
-            if name not in implemented_algorithms
+            if name not in _implemented_algorithms
         ]
         if unknown_algorithms:
             raise ValueError(f"unknown algorithms: {', '.join(unknown_algorithms)}")
@@ -101,15 +115,65 @@ class Algorithms:
 
         return cls(variables)
 
-    def unique(self):
-        return list(self.algorithms.values())
+    def indexing_modes(self):
+        algorithms = list(dict.fromkeys(self.variables.values()))
+
+        return [_indexing_modes[algorithm] for algorithm in algorithms]
 
     def regrid(self, ds, weights):
         pass
 
 
-def create_index(source_geoms, *, kind="rtree"):
-    pass
+def prefix_coords_and_dims(obj, prefix):
+    if isinstance(obj, xr.DataArray):
+        obj_ = obj.to_dataset(name="__name__")
+    else:
+        obj_ = obj
+
+    return (
+        obj_.rename_dims({dim: f"{prefix}_{dim}" for dim in obj_.dims})
+        .rename_vars({var: f"{prefix}_{var}" for var in obj_.coords})
+        .coords
+    )
+
+
+@dataclass
+class Index:
+    index: RTree | DistributedRTree
+    source_geoms: xr.DataArray
+
+    def query(self, target_geoms, *, modes):
+        if isinstance(self.index, RTree):
+            raw_geoms = geoarrow.from_shapely(target_geoms.data.flatten())
+            kwargs = {"shape": target_geoms.shape}
+        else:
+            raw_geoms = target_geoms.data
+            kwargs = {}
+
+        results = {
+            mode: self.index.query(raw_geoms, method=mode, **kwargs) for mode in modes
+        }
+
+        target_coords = prefix_coords_and_dims(target_geoms, "target")
+        source_coords = prefix_coords_and_dims(self.source_geoms, "source")
+
+        dims = list(target_coords.dims) + list(source_coords.dims)
+
+        return xr.Dataset(
+            {mode: (dims, data) for mode, data in results.items()},
+            coords=source_coords.assign(target_coords),
+        )
+
+
+def create_index(source_geoms):
+    raw_geoms = source_geoms.data
+
+    if isinstance(raw_geoms, np.ndarray):
+        index = RTree.from_shapely(raw_geoms)
+    elif isinstance(raw_geoms, dask_array_type):
+        index = DistributedRTree(raw_geoms)
+
+    return Index(index, source_geoms)
 
 
 def weights(source_geoms, target_geoms, indexed_cells):
