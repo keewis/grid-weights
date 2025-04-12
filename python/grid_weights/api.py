@@ -122,15 +122,12 @@ class Algorithms:
         pass
 
 
-def prefix_coords_and_dims(obj, prefix):
-    if isinstance(obj, xr.DataArray):
-        obj_ = obj.to_dataset(name="__name__")
-    else:
-        obj_ = obj
 
+def prefix_coords_and_dims(coords, prefix):
     return (
-        obj_.rename_dims({dim: f"{prefix}_{dim}" for dim in obj_.dims})
-        .rename_vars({var: f"{prefix}_{var}" for var in obj_.coords})
+        coords.to_dataset()
+        .rename_dims({dim: f"{prefix}_{dim}" for dim in coords.dims})
+        .rename_vars({var: f"{prefix}_{var}" for var in coords.variables})
         .coords
     )
 
@@ -154,8 +151,8 @@ class Index:
             for mode in indexing_modes
         }
 
-        target_coords = prefix_coords_and_dims(target_geoms, "target")
-        source_coords = prefix_coords_and_dims(self.source_geoms, "source")
+        target_coords = prefix_coords_and_dims(target_geoms.coords, "target")
+        source_coords = prefix_coords_and_dims(self.source_geoms.coords, "source")
 
         dims = list(target_coords.dims) + list(source_coords.dims)
 
