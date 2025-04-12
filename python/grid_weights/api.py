@@ -178,4 +178,16 @@ def create_index(source_geoms):
 
 
 def weights(source_geoms, target_geoms, indexed_cells):
-    pass
+    algorithms = indexed_cells.attrs["algorithms"]
+
+    results = {}
+    for algorithm in algorithms:
+        indexing_mode = _indexing_modes[algorithm]
+
+        func = _implemented_algorithms[algorithm]
+        indexed_cells_ = indexed_cells[indexing_mode]
+
+        raw_weights = func(source_geoms.data, target_geoms.data, indexed_cells_.data)
+        results[algorithm] = (indexed_cells_.dims, raw_weights)
+
+    return xr.Dataset(results, coords=indexed_cells.coords)
