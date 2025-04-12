@@ -119,8 +119,25 @@ class Algorithms:
         return list(dict.fromkeys(self.variables.values()))
 
     def regrid(self, ds, weights):
-        pass
+        def _regrid(arr):
+            algorithm = self.variables[arr.name]
 
+            return xr.dot(
+                arr.variable, weights[algorithm], dims=weights.attrs["source_dims"]
+            )
+
+        to_regrid = ds.rename_dims({dim: f"source_{dim}" for dim in ds.dims})
+        regridded = to_regrid.map(_regrid)
+
+        return (
+            regridded.assign_coords(
+                weights.coords.to_dataset()
+                .drop_dims(weights.attrs["source_dims"])
+                .coords
+            )
+            .assign_coords(to_regrid.drop_dims(weights.attrs["source_dims"]).coords)
+            .pipe(removeprefix_coords_and_dims, "target")
+        )
 
 
 def prefix_coords_and_dims(coords, prefix):
@@ -129,6 +146,19 @@ def prefix_coords_and_dims(coords, prefix):
         .rename_dims({dim: f"{prefix}_{dim}" for dim in coords.dims})
         .rename_vars({var: f"{prefix}_{var}" for var in coords.variables})
         .coords
+    )
+
+
+def removeprefix_coords_and_dims(ds, prefix):
+    prefix_ = f"{prefix}_"
+    return ds.rename_dims(
+        {dim: dim.removeprefix(prefix_) for dim in ds.dims if dim.startswith(prefix_)}
+    ).rename_vars(
+        {
+            var: var.removeprefix(prefix_)
+            for var in ds.variables
+            if var.startswith(prefix_)
+        }
     )
 
 
