@@ -187,4 +187,7 @@ def weights(source_geoms, target_geoms, indexed_cells):
         raw_weights = func(source_geoms.data, target_geoms.data, indexed_cells_.data)
         results[algorithm] = (indexed_cells_.dims, raw_weights)
 
-    return xr.Dataset(results, coords=indexed_cells.coords)
+    source_dims = [dim for dim in indexed_cells.dims if dim.startswith("source_")]
+    return xr.Dataset(
+        results, coords=indexed_cells.coords, attrs={"source_dims": source_dims}
+    )
