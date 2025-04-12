@@ -115,10 +115,8 @@ class Algorithms:
 
         return cls(variables)
 
-    def indexing_modes(self):
-        algorithms = list(dict.fromkeys(self.variables.values()))
-
-        return [_indexing_modes[algorithm] for algorithm in algorithms]
+    def unique(self):
+        return list(dict.fromkeys(self.variables.values()))
 
     def regrid(self, ds, weights):
         pass
@@ -143,6 +141,7 @@ class Index:
     source_geoms: xr.DataArray
 
     def query(self, target_geoms, *, modes):
+        indexing_modes = [_indexing_modes[algorithm] for algorithm in modes]
         if isinstance(self.index, RTree):
             raw_geoms = geoarrow.from_shapely(target_geoms.data.flatten())
             kwargs = {"shape": target_geoms.shape}
@@ -151,7 +150,8 @@ class Index:
             kwargs = {}
 
         results = {
-            mode: self.index.query(raw_geoms, method=mode, **kwargs) for mode in modes
+            mode: self.index.query(raw_geoms, method=mode, **kwargs)
+            for mode in indexing_modes
         }
 
         target_coords = prefix_coords_and_dims(target_geoms, "target")
@@ -162,6 +162,7 @@ class Index:
         return xr.Dataset(
             {mode: (dims, data) for mode, data in results.items()},
             coords=source_coords.assign(target_coords),
+            attrs={"algorithms": modes},
         )
 
 
