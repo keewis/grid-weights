@@ -40,7 +40,7 @@ except ImportError:
 _implemented_algorithms = {
     "conservative": conservative_weights,
 }
-_indexing_modes = {
+_indexing_methods = {
     "conservative": "overlaps",
 }
 
@@ -126,7 +126,9 @@ class Algorithms:
                 arr.variable, weights[algorithm], dims=weights.attrs["source_dims"]
             )
 
-        to_regrid = ds.rename_dims({dim: f"source_{dim}" for dim in ds.dims})
+        to_regrid = ds.rename_dims(
+            {dim: f"source_{dim}" for dim in ds.dims if f"source_{dim}" in weights.dims}
+        )
         regridded = to_regrid.map(_regrid)
 
         return (
@@ -167,8 +169,10 @@ class Index:
     index: RTree | DistributedRTree
     source_geoms: xr.DataArray
 
-    def query(self, target_geoms, *, modes):
-        indexing_modes = [_indexing_modes[algorithm] for algorithm in modes]
+    def query(self, target_geoms, *, methods):
+        indexing_methods = list(
+            dict.fromkeys(_indexing_methods[method] for method in methods)
+        )
         if isinstance(self.index, RTree):
             raw_geoms = geoarrow.from_shapely(target_geoms.data.flatten())
             kwargs = {"shape": target_geoms.shape}
@@ -177,29 +181,31 @@ class Index:
             kwargs = {}
 
         results = {
-            mode: self.index.query(raw_geoms, method=mode, **kwargs)
-            for mode in indexing_modes
+            method: self.index.query(raw_geoms, method=method, **kwargs)
+            for method in indexing_methods
         }
 
         target_coords = prefix_coords_and_dims(target_geoms.coords, "target")
         source_coords = prefix_coords_and_dims(self.source_geoms.coords, "source")
 
-        dims = list(target_coords.dims) + list(source_coords.dims)
+        dims = [f"target_{dim}" for dim in target_geoms.dims] + [
+            f"source_{dim}" for dim in self.source_geoms.dims
+        ]
 
         return xr.Dataset(
-            {mode: (dims, data) for mode, data in results.items()},
+            {method: (dims, data) for method, data in results.items()},
             coords=source_coords.assign(target_coords),
-            attrs={"algorithms": modes},
+            attrs={"algorithms": methods},
         )
 
 
 def create_index(source_geoms):
     raw_geoms = source_geoms.data
 
-    if isinstance(raw_geoms, np.ndarray):
-        index = RTree.from_shapely(raw_geoms)
-    elif isinstance(raw_geoms, dask_array_type):
+    if isinstance(raw_geoms, dask_array_type):
         index = DistributedRTree(raw_geoms)
+    elif isinstance(raw_geoms, np.ndarray):
+        index = RTree.from_shapely(raw_geoms)
 
     return Index(index, source_geoms)
 
@@ -209,10 +215,10 @@ def weights(source_geoms, target_geoms, indexed_cells):
 
     results = {}
     for algorithm in algorithms:
-        indexing_mode = _indexing_modes[algorithm]
+        indexing_method = _indexing_methods[algorithm]
 
         func = _implemented_algorithms[algorithm]
-        indexed_cells_ = indexed_cells[indexing_mode]
+        indexed_cells_ = indexed_cells[indexing_method]
 
         raw_weights = func(source_geoms.data, target_geoms.data, indexed_cells_.data)
         results[algorithm] = (indexed_cells_.dims, raw_weights)
