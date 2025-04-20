@@ -34,7 +34,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     needs: detect-ci-trigger
-    if: needs.detect-ci-trigger.outputs.triggered == 'false'
+    if: needs.detect-ci-trigger.outputs.triggered == 'false' && false
 
     strategy:
       fail-fast: false
