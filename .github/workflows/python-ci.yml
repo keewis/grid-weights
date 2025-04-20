@@ -109,10 +109,11 @@ jobs:
           ls -l $PKG_CONFIG_PATH/*.pc
           whoami
           # remove dependency paths
-          find "$PKG_CONFIG_PATH" -name "*.pc" -type f | while read x; do
-              echo "$x";
-              sed -i '/Requires.private:/d' "$x";
-          done
+          if [[ "${{runner.os}}" == "MacOS" ]]; then
+              sed -i '' '/Requires.private:/d' $PKG_CONFIG_PATH/*.pc;
+          else
+              sed -i '/Requires.private:/d' $PKG_CONFIG_PATH/*.pc;
+          fi
 
       - name: Check that this worked
         run: |
