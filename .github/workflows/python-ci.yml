@@ -103,6 +103,7 @@ jobs:
       - name: Clean up pkg-config on all OSs
         run: |
           export PKG_CONFIG_PATH="${{env.PKG_CONFIG_PATH}}"
+          env | grep -i runner
           echo "OS: ${{ runner.os }}"
 
           # remove dependency paths
