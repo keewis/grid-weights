@@ -3,8 +3,8 @@ name: Rust CI
 on:
   push:
     branches: ["main"]
-  pull_request:
-    branches: ["main"]
+  # pull_request:
+  #   branches: ["main"]
 
 concurrency:
   group: ${{ github.workflow }}.${{ github.ref }}
@@ -34,7 +34,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     needs: detect-ci-trigger
-    if: needs.detect-ci-trigger.outputs.triggered == 'false' && false
+    if: needs.detect-ci-trigger.outputs.triggered == 'false'
 
     strategy:
       fail-fast: false
