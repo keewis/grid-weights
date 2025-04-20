@@ -107,12 +107,14 @@ jobs:
 
           # remove dependency paths
           if [[ "${{ runner.os }}" == "macOS" ]]; then
+              echo "macos"
               brew install gnu-sed
-              gsed -i '/Requires.private:/d' $PKG_CONFIG_PATH/*.pc;
+              sed=gsed
           else
               echo "not macos"
-              sed -i '/Requires.private:/d' $PKG_CONFIG_PATH/*.pc;
+              sed=sed
           fi
+          $sed -i '/Requires.private:/d' $PKG_CONFIG_PATH/*.pc;
 
       - name: Check that this worked
         run: |
