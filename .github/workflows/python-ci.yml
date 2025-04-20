@@ -111,7 +111,8 @@ jobs:
           else
               sed_opts="-i"
           fi
-          sed "$sed_opts" '/Requires.private:/d' $(find $PKG_CONFIG_PATH -name "*.pc" -type f);
+          sed "$sed_opts" '/Requires.private:/d' \
+              $(find $PKG_CONFIG_PATH -name "*.pc" -type f);
 
       - name: Check that this worked
         run: |
