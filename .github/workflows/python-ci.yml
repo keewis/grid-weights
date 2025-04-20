@@ -100,7 +100,9 @@ jobs:
         run: |
           export PKG_CONFIG_PATH="${{env.PKG_CONFIG_PATH}}"
 
-          ls -l $PKG_CONFIG_PATH
+          pwd
+          ls -l
+          ls -l $PKG_CONFIG_PATH/*.pc
           # remove dependency paths
           sed -i '/Requires.private:/d' $PKG_CONFIG_PATH/*.pc
 
