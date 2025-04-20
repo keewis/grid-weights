@@ -104,16 +104,9 @@ jobs:
         run: |
           export PKG_CONFIG_PATH="${{env.PKG_CONFIG_PATH}}"
 
-          pwd
-          ls -l
-          ls -ld $PKG_CONFIG_PATH
-          whoami
-          sed -h
-          which sed
-          which gsed
           # remove dependency paths
           if [[ "${{runner.os}}" == "MacOS" ]]; then
-              sed -i .bak '/Requires.private:/d' $PKG_CONFIG_PATH/*.pc;
+              gsed -i '/Requires.private:/d' $PKG_CONFIG_PATH/*.pc;
           else
               sed -i '/Requires.private:/d' $PKG_CONFIG_PATH/*.pc;
           fi
