@@ -103,9 +103,10 @@ jobs:
       - name: Clean up pkg-config on all OSs
         run: |
           export PKG_CONFIG_PATH="${{env.PKG_CONFIG_PATH}}"
+          echo "OS: ${{ runner.os }}"
 
           # remove dependency paths
-          if [[ "${{runner.os}}" == "MacOS" ]]; then
+          if [[ "${{ runner.os }}" == "MacOS" ]]; then
               brew install gnu-sed
               mkdir -p temp
               pushd temp
