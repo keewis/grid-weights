@@ -79,7 +79,7 @@ jobs:
       - name: Help finding installed libraries
         run: |
           pushd $CONDA_PREFIX
-          if [[ ${{ runner.os }} == "Windows" ]]; then
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
             export PKG_CONFIG_PATH="$(readlink -f Library/lib/pkgconfig)"
             export LD_LIBRARY_PATH="$(readlink -f Library/lib)"
           else
@@ -93,7 +93,7 @@ jobs:
           echo "PYO3_PYTHON=$(which python)" >> $GITHUB_ENV
 
       - name: Help the linker on macos
-        if: runner.os == 'MacOS'
+        if: runner.os == 'macOS'
         run: |
           export PKG_CONFIG_PATH="${{env.PKG_CONFIG_PATH}}"
 
@@ -103,23 +103,19 @@ jobs:
       - name: Clean up pkg-config on all OSs
         run: |
           export PKG_CONFIG_PATH="${{env.PKG_CONFIG_PATH}}"
-          env | grep -i runner
-          echo "OS: ${{ runner.os }}"
 
           # remove dependency paths
-          if [[ "${{ runner.os }}" == "macOS" ]]; then
-              echo "macos"
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
               brew install gnu-sed
               sed=gsed
           else
-              echo "not macos"
               sed=sed
           fi
           $sed -i '/Requires.private:/d' $PKG_CONFIG_PATH/*.pc;
 
       - name: Check that this worked
         run: |
-          if [[ "${{runner.os}}" == "MacOS" ]]; then
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
               pkg-config --libs --cflags proj 'proj >= 9.4.0'
               pkgconf --libs --cflags proj 'proj >= 9.4.0'
           else
