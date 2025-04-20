@@ -112,7 +112,7 @@ jobs:
           sed --help
           # remove dependency paths
           if [[ "${{runner.os}}" == "MacOS" ]]; then
-              sed -i '' '/Requires.private:/d' $PKG_CONFIG_PATH/*.pc;
+              sed -i .bak '/Requires.private:/d' $PKG_CONFIG_PATH/*.pc;
           else
               sed -i '/Requires.private:/d' $PKG_CONFIG_PATH/*.pc;
           fi
