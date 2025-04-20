@@ -47,6 +47,7 @@ jobs:
 
     env:
       FORCE_COLOR: 3
+      CONDA_ENV_FILE: "ci/requirements/environment-rust.yaml"
 
     defaults:
       run:
@@ -63,7 +64,7 @@ jobs:
         uses: mamba-org/setup-micromamba@v2
         with:
           environment-name: rust-tests
-          environment-file: ci/requirements/environment-rust.yaml
+          environment-file: "${{ env.CONDA_ENV_FILE }}"
           cache-environment: true
           cache-environment-key: "${{runner.os}}-${{runner.arch}}-rust-py${{ matrix.python-version }}-${{env.TODAY}}-${{hashFiles(env.CONDA_ENV_FILE)}}"
           create-args: >-
@@ -72,7 +73,7 @@ jobs:
       - name: Create rust cache
         uses: Swatinem/rust-cache@v2
         with:
-          prefix-key: "py${{ matrix.python-version }}"
+          prefix-key: "rust-py${{ matrix.python-version }}"
 
       - name: Help finding installed libraries
         run: |

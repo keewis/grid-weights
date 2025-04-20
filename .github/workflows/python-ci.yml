@@ -38,6 +38,7 @@ jobs:
     if: needs.detect-ci-trigger.outputs.triggered == 'false'
     env:
       FORCE_COLOR: 3
+      CONDA_ENV_FILE: "ci/requirements/environment.yaml"
     defaults:
       run:
         shell: bash -l {0}
@@ -63,7 +64,7 @@ jobs:
       - name: Setup micromamba
         uses: mamba-org/setup-micromamba@v2
         with:
-          environment-file: ci/requirements/environment.yaml
+          environment-file: "${{ env.CONDA_ENV_FILE }}"
           environment-name: python-tests
           cache-environment: true
           cache-environment-key: "${{runner.os}}-${{runner.arch}}-py${{matrix.python-version}}-${{env.TODAY}}-${{hashFiles(env.CONDA_ENV_FILE)}}"
@@ -73,7 +74,7 @@ jobs:
       - name: Create rust cache
         uses: Swatinem/rust-cache@v2
         with:
-          prefix-key: "py${{ matrix.python-version }}"
+          prefix-key: "python-py${{ matrix.python-version }}"
 
       - name: Help finding installed libraries
         run: |
