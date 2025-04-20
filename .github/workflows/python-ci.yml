@@ -108,8 +108,8 @@ jobs:
           ls -l
           ls -ld $PKG_CONFIG_PATH
           whoami
-          sed --version
-          sed --help
+          sed -h
+          which sed
           # remove dependency paths
           if [[ "${{runner.os}}" == "MacOS" ]]; then
               sed -i .bak '/Requires.private:/d' $PKG_CONFIG_PATH/*.pc;
