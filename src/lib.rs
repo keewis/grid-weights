@@ -3,7 +3,7 @@ use geoarrow::{array::PolygonArray, trait_::ArrayAccessor};
 use numpy::{PyArray1 as PyNumpyArray1, PyArrayDyn, PyArrayMethods};
 use pyo3::exceptions::PyOSError;
 use pyo3::prelude::*;
-use pyo3::types::IntoPyDict;
+use pyo3::types::{IntoPyDict, PyTuple};
 use pyo3_arrow::PyArray;
 
 pub trait AsPolygonArray {
@@ -59,10 +59,12 @@ fn pyarray_as_vec(data: &Bound<'_, PyAny>) -> PyResult<Vec<i64>> {
 }
 
 #[pyfunction]
+#[pyo3(signature=(source_cells, target_cells, overlapping_cells, *, shape=None))]
 fn conservative_regridding(
     source_cells: PyArray,
     target_cells: PyArray,
     overlapping_cells: Py<PyAny>,
+    shape: Option<&Bound<PyTuple>>,
 ) -> PyResult<PyObject> {
     let source_polygons: Vec<_> = source_cells
         .into_polygon_array()?
@@ -72,6 +74,10 @@ fn conservative_regridding(
         .into_polygon_array()?
         .iter_geo_values()
         .collect();
+    let shape_ = match shape {
+        None => vec![target_polygons.len(), source_polygons.len()],
+        Some(shape) => shape.extract()?,
+    };
 
     // algorithm:
     // 1. iterate over the sparse matrix → pair of indices into source / target cells
@@ -135,7 +141,12 @@ fn conservative_regridding(
         ]
         .into_py_dict(py)?;
 
-        Ok(sparse.getattr("GCXS")?.call(args, Some(&kwargs))?.unbind())
+        Ok(sparse
+            .getattr("GCXS")?
+            .call(args, Some(&kwargs))?
+            .getattr("reshape")?
+            .call1((shape_,))?
+            .unbind())
     })
 }
 
