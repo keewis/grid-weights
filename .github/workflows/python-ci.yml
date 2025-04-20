@@ -106,11 +106,12 @@ jobs:
 
           # remove dependency paths
           if [[ "${{runner.os}}" == "MacOS" ]]; then
+              brew install gnu-sed
               mkdir -p temp
               pushd temp
               find $PKG_CONFIG_PATH -name "*.pc" -type f | while read x; do
                   outpath="$(basename $x)"
-                  cat "$x" | sed '/Requires.private:/d' > "$outpath"
+                  cat "$x" | gsed '/Requires.private:/d' > "$outpath"
                   mv "$outpath" "$x"
               done
               popd
