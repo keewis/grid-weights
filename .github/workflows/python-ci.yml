@@ -106,7 +106,15 @@ jobs:
 
           # remove dependency paths
           if [[ "${{runner.os}}" == "MacOS" ]]; then
-              gsed -i '/Requires.private:/d' $PKG_CONFIG_PATH/*.pc;
+              mkdir -p temp
+              pushd temp
+              find $PKG_CONFIG_PATH -name "*.pc" -type f | while read x; do
+                  outpath="$(basename $x)"
+                  gsed '/Requires.private:/d' "$x" "$outpath"
+                  mv "$outpath" "$x"
+              done
+              popd
+              rmdir temp
           else
               sed -i '/Requires.private:/d' $PKG_CONFIG_PATH/*.pc;
           fi
