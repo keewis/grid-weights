@@ -106,7 +106,6 @@ jobs:
 
           # remove dependency paths
           if [[ "$RUNNER_OS" == "macOS" ]]; then
-              # brew install gnu-sed
               sed_opts="-i ''"
           else
               sed_opts="-i"
