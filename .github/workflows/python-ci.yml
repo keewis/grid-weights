@@ -47,13 +47,13 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          # - "ubuntu-latest"
+          - "ubuntu-latest"
           - "macos-latest"
           # - "windows-latest"
         python-version:
-          # - "3.11"
+          - "3.11"
           - "3.12"
-          # - "3.13"
+          - "3.13"
 
     steps:
       - uses: actions/checkout@v4
