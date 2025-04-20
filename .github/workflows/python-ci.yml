@@ -109,7 +109,8 @@ jobs:
           ls -l $PKG_CONFIG_PATH/*.pc
           whoami
           # remove dependency paths
-          sed -i '/Requires.private:/d' $(find $PKG_CONFIG_PATH -name "*.pc" -type f)
+          find "$PKG_CONFIG_PATH" -name "*.pc" -type f \
+              -exec sed -i '/Requires.private:/d' "{}" \;
 
       - name: Check that this worked
         run: |
