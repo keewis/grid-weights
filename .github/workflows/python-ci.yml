@@ -38,6 +38,7 @@ jobs:
     if: needs.detect-ci-trigger.outputs.triggered == 'false'
     env:
       FORCE_COLOR: 3
+      CONDA_ENV_FILE: "ci/requirements/environment.yaml"
     defaults:
       run:
         shell: bash -l {0}
@@ -48,9 +49,11 @@ jobs:
         os:
           - "ubuntu-latest"
           - "macos-latest"
-          # building the proj-sys crate appears to be tricky on windows
           # - "windows-latest"
-        python-version: ["3.10", "3.12"]
+        python-version:
+          - "3.10"
+          - "3.12"
+          - "3.13"
 
     steps:
       - uses: actions/checkout@v4
@@ -61,7 +64,7 @@ jobs:
       - name: Setup micromamba
         uses: mamba-org/setup-micromamba@v2
         with:
-          environment-file: ci/requirements/environment.yaml
+          environment-file: "${{ env.CONDA_ENV_FILE }}"
           environment-name: python-tests
           cache-environment: true
           cache-environment-key: "${{runner.os}}-${{runner.arch}}-py${{matrix.python-version}}-${{env.TODAY}}-${{hashFiles(env.CONDA_ENV_FILE)}}"
@@ -70,21 +73,60 @@ jobs:
 
       - name: Create rust cache
         uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: "python-py${{ matrix.python-version }}"
 
       - name: Help finding installed libraries
         run: |
           pushd $CONDA_PREFIX
-          echo "PKG_CONFIG_PATH=$(readlink -f lib/pkgconfig)" >> $GITHUB_ENV
-          echo "LD_LIBRARY_PATH=$(readlink -f lib)" >> $GITHUB_ENV
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            export PKG_CONFIG_PATH="$(readlink -f Library/lib/pkgconfig)"
+            export LD_LIBRARY_PATH="$(readlink -f Library/lib)"
+          else
+            export PKG_CONFIG_PATH="$(readlink -f lib/pkgconfig)"
+            export LD_LIBRARY_PATH="$(readlink -f lib)"
+          fi
           popd
 
-          if [[ -z "$CONDA_PREFIX" ]]; then
-            echo "CONDA_PREFIX is unset!"
-            exit 1
+          echo "PKG_CONFIG_PATH=$PKG_CONFIG_PATH" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> $GITHUB_ENV
+          echo "PYO3_PYTHON=$(which python)" >> $GITHUB_ENV
+
+      - name: Help the linker on macos
+        if: runner.os == 'macOS'
+        run: |
+          export PKG_CONFIG_PATH="${{env.PKG_CONFIG_PATH}}"
+
+          mkdir -p target/debug/deps
+          ln -sf $CONDA_PREFIX/lib/*.dylib target/debug/deps/
+
+      - name: Clean up pkg-config on all OSs
+        run: |
+          export PKG_CONFIG_PATH="${{env.PKG_CONFIG_PATH}}"
+
+          # remove dependency paths
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+              sed_opts="-i ''"
+          else
+              sed_opts="-i"
+          fi
+          sed "$sed_opts" '/Requires.private:/d' \
+              $(find $PKG_CONFIG_PATH -name "*.pc" -type f);
+
+      - name: Check that this worked
+        run: |
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+              pkg-config --libs --cflags proj 'proj >= 9.4.0'
+              pkgconf --libs --cflags proj 'proj >= 9.4.0'
+          else
+              pkg-config --libs --cflags proj 'proj >= 9.4.0'
           fi
 
       - name: Install the package
         run: |
+          export PKG_CONFIG_PATH="${{env.PKG_CONFIG_PATH}}"
+          export PYO3_PYTHON="${{env.PYO3_PYTHON}}"
+
           maturin develop
 
       - name: Check imports

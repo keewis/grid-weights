@@ -1,6 +1,5 @@
-from .grid_weights import *
+from grid_weights.grid_weights import conservative_regridding
+from grid_weights.conservative import conservative_weights
 
 
-__doc__ = grid_weights.__doc__
-if hasattr(grid_weights, "__all__"):
-    __all__ = grid_weights.__all__
+__all__ = ["conservative_regridding", "conservative_weights"]

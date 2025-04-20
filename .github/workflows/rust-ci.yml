@@ -41,13 +41,13 @@ jobs:
       matrix:
         os:
           - "ubuntu-latest"
-          # building proj-sys on windows appears to not really be possible
-          # - "windows-latest"
+          - "windows-latest"
           - "macos-latest"
         python-version: ["3.10", "3.12", "3.13"]
 
     env:
       FORCE_COLOR: 3
+      CONDA_ENV_FILE: "ci/requirements/environment-rust.yaml"
 
     defaults:
       run:
@@ -64,54 +64,60 @@ jobs:
         uses: mamba-org/setup-micromamba@v2
         with:
           environment-name: rust-tests
-          environment-file: ci/requirements/environment-rust.yaml
+          environment-file: "${{ env.CONDA_ENV_FILE }}"
           cache-environment: true
           cache-environment-key: "${{runner.os}}-${{runner.arch}}-rust-py${{ matrix.python-version }}-${{env.TODAY}}-${{hashFiles(env.CONDA_ENV_FILE)}}"
           create-args: >-
             python=${{ matrix.python-version }}
+
       - name: Create rust cache
         uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: "rust-py${{ matrix.python-version }}"
+
       - name: Help finding installed libraries
         run: |
           pushd $CONDA_PREFIX
-          export PKG_CONFIG_PATH=$(readlink -f lib/pkgconfig)
-          export LD_LIBRARY_PATH=$(readlink -f lib)
-          export CPATH=$(readlink -f include)
-          export PYO3_PYTHON=$(readlink -f bin/python)
+          if [[ ${{ runner.os }} == "Windows" ]]; then
+            export PKG_CONFIG_PATH="$(readlink -f Library/lib/pkgconfig)"
+            export LD_LIBRARY_PATH="$(readlink -f Library/lib)"
+          else
+            export PKG_CONFIG_PATH="$(readlink -f lib/pkgconfig)"
+            export LD_LIBRARY_PATH="$(readlink -f lib)"
+          fi
           popd
-
-          if [[ -z "$CONDA_PREFIX" ]]; then
-            echo "CONDA_PREFIX is unset!";
-            exit 1
-          fi
-
-          if [[ "${{ matrix.os }}" == "macos-latest" ]]; then
-            mkdir -p target/debug/deps
-            ln -s "$CONDA_PREFIX/lib/libpython${{ matrix.python-version }}.dylib" target/debug/deps
-            ls -l target/debug/deps
-            ls -l $CONDA_PREFIX/lib
-          fi
 
           echo "PKG_CONFIG_PATH=$PKG_CONFIG_PATH" >> $GITHUB_ENV
           echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> $GITHUB_ENV
-          echo "CPATH=$CPATH" >> $GITHUB_ENV
-          echo "PYO3_PYTHON=$PYO3_PYTHON" >> $GITHUB_ENV
+          echo "PYO3_PYTHON=$(which python)" >> $GITHUB_ENV
 
-          echo >> .cargo/config.toml
-          echo "[env]" >> .cargo/config.toml
-          echo "PKG_CONFIG_PATH = '$PKG_CONFIG_PATH'" >> .cargo/config.toml
-          echo "LD_LIBRARY_PATH = '$LD_LIBRARY_PATH'" >> .cargo/config.toml
-          echo "CPATH = '$CPATH'" >> .cargo/config.toml
-          echo "PYO3_PYTHON = '$PYO3_PYTHON'" >> .cargo/config.toml
+      - name: Help the linker on macos
+        if: runner.os == 'MacOS'
+        run: |
+          export PKG_CONFIG_PATH="${{env.PKG_CONFIG_PATH}}"
 
-          echo "final cargo config:"
-          cat .cargo/config.toml
-          echo "---"
-          echo "env:"
-          env
+          mkdir -p target/debug/deps
+          ln -s $CONDA_PREFIX/lib/*.dylib target/debug/deps/
+
+          pkg-config --libs --cflags proj 'proj >= 9.4.0'
+          pkgconf --libs --cflags proj 'proj >= 9.4.0'
+
+      - name: Clean up pkg-config
+        if: runner.os == 'Windows'
+        run: |
+          export PKG_CONFIG_PATH="${{env.PKG_CONFIG_PATH}}"
+
+          # remove dependency paths
+          sed -i '/Requires.private:/d' $PKG_CONFIG_PATH/*.pc
+
+          # check that this actually works
+          pkg-config --libs --cflags proj 'proj >= 9.4.0'
 
       - name: Run tests
         run: |
+          export PKG_CONFIG_PATH="${{env.PKG_CONFIG_PATH}}"
+          export PYO3_PYTHON="${{env.PYO3_PYTHON}}"
+
           cargo build --tests --keep-going
           cargo test --no-fail-fast
 
@@ -145,13 +151,63 @@ jobs:
           environment-name: rust-tests
           environment-file: ci/requirements/environment-rust.yaml
           cache-environment: true
-          cache-environment-key: "${{runner.os}}-${{runner.arch}}-rust-${{env.TODAY}}-${{hashFiles(env.CONDA_ENV_FILE)}}"
+          cache-environment-key: "${{runner.os}}-${{runner.arch}}-rust-linting-${{env.TODAY}}-${{hashFiles(env.CONDA_ENV_FILE)}}"
           create-args: >-
             python=${{ matrix.python-version }}
 
       - name: Create rust cache
         uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: "lint"
+
+      - name: Help finding installed libraries
+        run: |
+          pushd $CONDA_PREFIX
+          if [[ ${{ runner.os }} == "Windows" ]]; then
+            export PKG_CONFIG_PATH="$(readlink -f Library/lib/pkgconfig)"
+            export LD_LIBRARY_PATH="$(readlink -f Library/lib)"
+            export PYO3_PYTHON="$(readlink -f python.exe)"
+          else
+            export PKG_CONFIG_PATH="$(readlink -f lib/pkgconfig)"
+            export LD_LIBRARY_PATH="$(readlink -f lib)"
+            export PYO3_PYTHON="$(readlink -f bin/python)"
+          fi
+          popd
+
+          echo "PKG_CONFIG_PATH=$PKG_CONFIG_PATH" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >> $GITHUB_ENV
+          echo "PYO3_PYTHON=$(which python)" >> $GITHUB_ENV
+
+      - name: Help the linker on macos
+        if: runner.os == 'MacOS'
+        run: |
+          export PKG_CONFIG_PATH="${{env.PKG_CONFIG_PATH}}"
+
+          mkdir -p target/debug/deps
+          ln -s $CONDA_PREFIX/lib/*.dylib target/debug/deps/
+
+          pkg-config --libs --cflags proj 'proj >= 9.4.0'
+          pkgconf --libs --cflags proj 'proj >= 9.4.0'
+
+      - name: Clean up pkg-config on windows
+        if: runner.os == 'Windows'
+        run: |
+          export PKG_CONFIG_PATH="${{env.PKG_CONFIG_PATH}}"
+
+          # remove dependency paths
+          sed -i '/Requires.private:/d' $PKG_CONFIG_PATH/*.pc
+
+          # check that this actually works
+          pkg-config --libs --cflags proj 'proj >= 9.4.0'
+
+      - name: Check pkg-config on linux
+        run: |
+          export PKG_CONFIG_PATH="${{env.PKG_CONFIG_PATH}}"
+          pkg-config --libs --cflags proj 'proj >= 9.4.0'
 
       - name: Cargo clippy
         run: |
+          export PKG_CONFIG_PATH="${{env.PKG_CONFIG_PATH}}"
+          export PYO3_PYTHON="${{env.PYO3_PYTHON}}"
+
           cargo clippy --tests -- -D warnings
