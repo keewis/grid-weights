@@ -117,6 +117,7 @@ jobs:
               popd
               rmdir temp
           else
+              echo "not macos"
               sed -i '/Requires.private:/d' $PKG_CONFIG_PATH/*.pc;
           fi
 
