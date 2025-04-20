@@ -110,6 +110,7 @@ jobs:
           whoami
           # remove dependency paths
           find "$PKG_CONFIG_PATH" -name "*.pc" -type f | while read x; do
+              echo "$x";
               sed -i '/Requires.private:/d' "$x";
           done
 
