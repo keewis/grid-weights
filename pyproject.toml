@@ -17,6 +17,11 @@ dependencies = [
   "grid-indexing>=0.1.1",
 ]
 
+[project.optional-dependencies]
+distributed = [
+  "dask",
+]
+
 [tool.maturin]
 python-source = "python"
 features = ["pyo3/extension-module"]
