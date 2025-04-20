@@ -1,5 +1,6 @@
-import pytest
 import numpy as np
+import pytest
+
 from grid_weights import conservative
 
 da = pytest.importorskip("dask.array")
