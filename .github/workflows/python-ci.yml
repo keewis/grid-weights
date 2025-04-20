@@ -94,7 +94,7 @@ jobs:
           export PKG_CONFIG_PATH="${{env.PKG_CONFIG_PATH}}"
 
           mkdir -p target/debug/deps
-          ln -s $CONDA_PREFIX/lib/*.dylib target/debug/deps/
+          ln -sf $CONDA_PREFIX/lib/*.dylib target/debug/deps/
 
       - name: Clean up pkg-config on all OSs
         run: |
