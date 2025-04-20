@@ -106,7 +106,7 @@ jobs:
           echo "OS: ${{ runner.os }}"
 
           # remove dependency paths
-          if [[ "${{ runner.os }}" == "MacOS" ]]; then
+          if [[ "${{ runner.os }}" == "macOS" ]]; then
               brew install gnu-sed
               mkdir -p temp
               pushd temp
