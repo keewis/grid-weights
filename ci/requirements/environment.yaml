@@ -5,12 +5,17 @@ dependencies:
   - pkg-config
   - proj
   - sqlite
+  - openssl
+  - zlib
+  - libtiff
   - shapely
   - numpy
   - sparse>=0.15
   - cf-xarray
   - pytest
   - pytest-cov
+  - dask
   - pip
   - pip:
       - geoarrow-rust-core==0.4.0b3
+      - grid-indexing

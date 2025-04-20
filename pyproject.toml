@@ -6,14 +6,15 @@ build-backend = "maturin"
 name = "grid-weights"
 requires-python = ">=3.10"
 classifiers = [
-    "Programming Language :: Rust",
-    "Programming Language :: Python :: Implementation :: CPython",
-    "Programming Language :: Python :: Implementation :: PyPy",
+  "Programming Language :: Rust",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dynamic = ["version"]
 dependencies = [
-    "sparse",
-    "geoarrow-rust-core>=0.4.0b3",
+  "sparse",
+  "geoarrow-rust-core>=0.4.0b3",
+  "grid-indexing",
 ]
 
 [tool.maturin]
