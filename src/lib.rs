@@ -1,4 +1,4 @@
-use geo::{algorithm::BooleanOps, Area};
+use geo::{algorithm::BooleanOps, GeodesicArea};
 use geoarrow::{array::PolygonArray, trait_::ArrayAccessor};
 use numpy::{PyArray1 as PyNumpyArray1, PyArrayDyn, PyArrayMethods};
 use pyo3::exceptions::PyOSError;
@@ -104,14 +104,17 @@ fn conservative_regridding(
             let source_indices = it.1;
 
             let target_cell = &target_polygons[target_index];
-            let target_area = target_cell.unsigned_area();
+            let target_area = target_cell.geodesic_area_unsigned();
 
             let weights = source_indices
                 .into_iter()
                 .map(|index| {
                     let source_cell = &source_polygons[index];
 
-                    source_cell.intersection(target_cell).unsigned_area() / target_area
+                    source_cell
+                        .intersection(target_cell)
+                        .geodesic_area_unsigned()
+                        / target_area
                 })
                 .collect::<Vec<_>>();
 
