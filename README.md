@@ -32,3 +32,12 @@ The procedure works as follows:
 1. use the R\*Tree implementation of the [grid-indexing](https://github.com/keewis/grid-indexing) package to compute a sparse boolean mask representing the source cells interacting with the target cells
 2. use that sparse boolean mask and the source and target cell boundary polygons to compute the interpolation weights
 3. For each variable, apply the appropriate interpolation weights using a sparse matrix multiplication
+
+`grid-weights` is implemented in rust and makes use of the following crates:
+
+- `geo`
+- `geographiclib-rs`
+- `geoarrow-rs`
+- `numpy`
+- `pyo3`
+- `pyo3-arrow`
