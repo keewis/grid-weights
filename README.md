@@ -27,6 +27,8 @@ regridded = algorithms.regrid(ds, weights)
 
 `grid-weights` allows configuring interpolation algorithms on a per-variable basis. For example, it allows selecting "nearest-neighbour" interpolation for a boolean mask, "majority vote" for categorical data, and "conservative" for a continuous physical quantity (once those algorithms are actually implemented).
 
+Additionally, it provides built-in distributed array computation using `dask`, which is helpful if the grid itself is larger than memory.
+
 The procedure works as follows:
 
 1. use the R\*Tree implementation of the [grid-indexing](https://github.com/keewis/grid-indexing) package to compute a sparse boolean mask representing the source cells interacting with the target cells
