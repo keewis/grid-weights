@@ -1,4 +1,4 @@
-# grid-indexing
+# grid-weights
 
 ```{toctree}
 ---
